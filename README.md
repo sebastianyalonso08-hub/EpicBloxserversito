@@ -28,3 +28,28 @@ Abre la URL en dos navegadores/cuentas y entra al mismo juego. Ambos deben tener
 ## Registro global de cuentas
 
 Las cuentas reales se guardan en `users.json`. En Render se recomienda usar el disco persistente montado en `/var/data`; el servidor detecta Render automáticamente y usa ese directorio. La cuenta de prueba `SebUser` ya no se crea.
+
+
+## Administradores
+
+El panel de administracion se controla **en el servidor**, no desde JavaScript del navegador.
+
+Puedes elegir administradores de dos formas:
+
+- Variable de Render `EPICBLOXS_OWNER_USERNAME`: tu usuario principal.
+- Variable `ADMIN_USER_IDS`: lista separada por comas de usernames o IDs numericos, por ejemplo `1001,amigo1`.
+- Tambien existe `data/admins.json` (lista JSON de usernames/IDs) para administradores adicionales.
+
+El panel permite:
+- eliminar ropa creada por jugadores;
+- banear/desbanear cuentas por dias;
+- regalar Sunnys a cualquier cuenta o a tu propia cuenta;
+- dentro de una partida: kick, ban por dias y activar/desactivar vuelo.
+
+**Importante:** las acciones se validan en `server.js`; ocultar el boton del panel no es la medida de seguridad.
+
+## Persistencia en Render
+
+EpicBloxs guarda cuentas, sesiones, catalogo, bans y administradores en `EPICBLOXS_DATA_DIR`.
+
+El `render.yaml` de este proyecto usa `/var/data` y un persistent disk de 1 GB. Render indica que el filesystem normal es efimero y que los cambios locales se pierden al redeploy; un persistent disk conserva los cambios bajo su mount path. El disk requiere un servicio de pago. Si el servicio actual es Free, conecta un datastore persistente (por ejemplo Render Postgres) o cambia a un servicio de pago con disk antes de depender de `users.json` para cuentas reales.

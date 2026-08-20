@@ -31,11 +31,31 @@ const sessionsPath = path.join(dataDir, "sessions.json");
 const dmsPath = path.join(dataDir, "dms.json");
 const groupsPath = path.join(dataDir, "groups.json");
 const sessionSecretPath = path.join(dataDir, "session-secret.txt");
+const adminsPath = path.join(dataDir, "admins.json");
 
 function ensureDataDir() {
   if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
   if (!fs.existsSync(usersPath)) fs.writeFileSync(usersPath, "{}", "utf8");
   if (!fs.existsSync(catalogPath)) fs.writeFileSync(catalogPath, "[]", "utf8");
+  if (!fs.existsSync(adminsPath)) fs.writeFileSync(adminsPath, "[]", "utf8");
+
+  // Si usamos /var/data en Render y el disco persistente se acaba de crear,
+  // copia una base inicial del repositorio SOLO si el almacenamiento persistente
+  // todavía está vacío. Nunca sobrescribe cuentas existentes.
+  try {
+    const repoUsers = path.join(__dirname, "data", "users.json");
+    const repoCatalog = path.join(__dirname, "data", "catalog.json");
+    const currentUsers = readJsonObject(usersPath);
+    if (Object.keys(currentUsers).length === 0 && fs.existsSync(repoUsers)) {
+      const seedUsers = readJsonObject(repoUsers);
+      if (Object.keys(seedUsers).length) fs.writeFileSync(usersPath, JSON.stringify(seedUsers, null, 2), "utf8");
+    }
+    const currentCatalog = (() => { try { return JSON.parse(fs.readFileSync(catalogPath, "utf8") || "[]"); } catch { return []; } })();
+    if (!currentCatalog.length && fs.existsSync(repoCatalog)) {
+      const seedCatalog = (() => { try { return JSON.parse(fs.readFileSync(repoCatalog, "utf8") || "[]"); } catch { return []; } })();
+      if (Array.isArray(seedCatalog) && seedCatalog.length) fs.writeFileSync(catalogPath, JSON.stringify(seedCatalog, null, 2), "utf8");
+    }
+  } catch {}
 }
 
 function getPersistentSessionSecret() {
@@ -296,6 +316,48 @@ function saveCatalog(items) {
   fs.writeFileSync(catalogPath, JSON.stringify(items, null, 2), "utf8");
 }
 
+function loadAdmins() {
+  ensureDataDir();
+  try {
+    const raw = JSON.parse(fs.readFileSync(adminsPath, "utf8") || "[]");
+    return Array.isArray(raw) ? raw.map(v => String(v).trim()).filter(Boolean) : [];
+  } catch { return []; }
+}
+
+function isAdminUser(user, key) {
+  if (!user) return false;
+  const configured = new Set(loadAdmins().map(v => v.toLowerCase()));
+  const envValues = String(process.env.ADMIN_USER_IDS || process.env.EPICBLOXS_ADMIN_USERS || "")
+    .split(",").map(v => v.trim()).filter(Boolean);
+  for (const v of envValues) configured.add(v.toLowerCase());
+  const owner = String(process.env.EPICBLOXS_OWNER_USERNAME || "").trim().toLowerCase();
+  if (owner) configured.add(owner);
+  return configured.has(String(key || "").toLowerCase())
+    || configured.has(String(user.username || "").trim().toLowerCase())
+    || configured.has(String(user.userId || "").trim().toLowerCase());
+}
+
+function banRemainingMs(user) {
+  const until = Number(user && user.banUntil || 0);
+  return Number.isFinite(until) && until > Date.now() ? until - Date.now() : 0;
+}
+
+function banMessage(user) {
+  const remaining = banRemainingMs(user);
+  if (!remaining) return "";
+  const days = Math.max(1, Math.ceil(remaining / 86400000));
+  return `Esta cuenta esta baneada por ${days} dia(s).${user.banReason ? " Motivo: " + user.banReason : ""}`;
+}
+
+function normalizeAvatarData(user) {
+  if (!user || typeof user !== "object") return;
+  user.avatar = user.avatar && typeof user.avatar === "object" ? user.avatar : {};
+  if (!Array.isArray(user.avatar.accessories)) user.avatar.accessories = [];
+  user.avatar.colors = user.avatar.colors && typeof user.avatar.colors === "object"
+    ? user.avatar.colors : { head:"#f5c928", arms:"#f5c928", torso:"#1477b9", legs:"#8cae45" };
+  if (!user.avatar.torsoType) user.avatar.torsoType = "male";
+}
+
 const BANNED_TERMS = [
   // Español
   "puta","puto","putas","putos","mierda","joder","coño","cojones","cabron","cabrona","cabronas","cabrones","pendejo","pendeja","pendejos","pendejas","gilipollas","imbecil","imbécil","idiota","idiotas","estupido","estúpido","estupida","estúpida","maricon","maricón","marica","zorra","culero","culera","verga","polla","chingar","chingada","chingado","malparido","malparida","perra","perro","bastardo","bastarda",
@@ -494,6 +556,8 @@ function ensureUserIds(users) {
       changed = true;
     }
     if (!Array.isArray(user.avatar.accessories)) { user.avatar.accessories = []; changed = true; }
+    if (typeof user.banUntil !== "number") { user.banUntil = 0; changed = true; }
+    if (typeof user.banReason !== "string") { user.banReason = ""; changed = true; }
     if (!user.avatar.colors || typeof user.avatar.colors !== "object") {
       user.avatar.colors = { head: "#f5c928", arms: "#f5c928", torso: "#1477b9", legs: "#8cae45" };
       changed = true;
@@ -568,6 +632,8 @@ function defaultUser(username, passwordHash, userId) {
     friendRequests: [],
     outgoingRequests: [],
     lastDailyLogin: "",
+    banUntil: 0,
+    banReason: "",
     createdAt: new Date().toISOString()
   };
 }
@@ -589,6 +655,8 @@ function publicUser(user, key) {
     friends: user.friends || [],
     friendRequests: user.friendRequests || [],
     outgoingRequests: user.outgoingRequests || [],
+    bannedUntil: Number(user.banUntil || 0),
+    isAdmin: isAdminUser(user, key),
     createdAt: user.createdAt
   };
 }
@@ -612,6 +680,12 @@ function getSessionUser(req) {
   sessionStamps.set(token, Date.now());
   const users = ensureUserIds(loadUsers());
   if (!users[key]) {
+    sessions.delete(token);
+    sessionStamps.delete(token);
+    saveSessionsDisk();
+    return null;
+  }
+  if (banRemainingMs(users[key]) > 0 && !isAdminUser(users[key], key)) {
     sessions.delete(token);
     sessionStamps.delete(token);
     saveSessionsDisk();
@@ -731,6 +805,7 @@ const server = http.createServer(async (req, res) => {
     const password = String(body.password || "");
     const users = syncUserRegistry();
     const user = users[key];
+    if (user && banRemainingMs(user) > 0) return json(res, 403, { error: banMessage(user) });
     if (user && hasBannedTerm(user.username)) return json(res, 403, { error: "Esta cuenta no puede iniciar sesion por el nombre de usuario." });
     if (!user || user.passwordHash !== hashPassword(password)) {
       return json(res, 401, { error: "Usuario o contrasena incorrectos." });
@@ -761,6 +836,14 @@ const server = http.createServer(async (req, res) => {
     const user = users[sess.key];
     if (body.avatar) user.avatar = body.avatar;
     if (Array.isArray(body.avatarInventory)) user.avatarInventory = body.avatarInventory.slice(0, 20);
+    normalizeAvatarData(user);
+    // Nunca permitas equipar un objeto que la cuenta no posee.
+    // Esto tambien repara cuentas antiguas que perdieron la separacion entre inventario y equipamiento.
+    const ownedAvatarItems = new Set(Array.isArray(user.avatarInventory) ? user.avatarInventory : []);
+    user.avatar.accessories = user.avatar.accessories
+      .map(id => String(id))
+      .filter((id, i, arr) => arr.indexOf(id) === i && ownedAvatarItems.has(id))
+      .slice(0, 20);
     if (Array.isArray(body.gameInventory)) user.gameInventory = body.gameInventory.slice(0, 20);
     // Compatibilidad con versiones anteriores: nunca vuelve a usarse como inventario de juego.
     user.inventory = [];
@@ -1089,6 +1172,103 @@ const server = http.createServer(async (req, res) => {
     return json(res, 200, { ok: true, published: true, item, message: "Publicado en el catalogo correctamente." });
   }
 
+
+  // ================= ADMINISTRACION =================
+  if (urlPath === "/api/admin/status" && req.method === "GET") {
+    const sess = getSessionUser(req);
+    if (!sess || !isAdminUser(sess.user, sess.key)) return json(res, 403, { error: "No tienes permisos de administrador." });
+    const users = syncUserRegistry();
+    const catalog = loadCatalog();
+    return json(res, 200, {
+      ok: true,
+      isAdmin: true,
+      users: Object.entries(users).map(([key, user]) => ({
+        id: String(user.userId), username: user.username, usernameKey: key,
+        sunnys: Number(user.sunnys || 0), banUntil: Number(user.banUntil || 0),
+        createdAt: user.createdAt || ""
+      })),
+      items: catalog.filter(item => item && item.ownerId != null).map(item => ({
+        id: item.id, name: item.name, category: item.category, type: item.type,
+        ownerId: item.ownerId, owner: item.owner, price: Number(item.price || 0),
+        status: item.status || "approved", createdAt: item.createdAt || ""
+      }))
+    });
+  }
+
+  if (urlPath === "/api/admin/gift-sunnys" && req.method === "POST") {
+    const sess = getSessionUser(req);
+    if (!sess || !isAdminUser(sess.user, sess.key)) return json(res, 403, { error: "No tienes permisos de administrador." });
+    const body = await readBody(req);
+    const users = syncUserRegistry();
+    const targetKey = resolveUserKey(users, body.target ?? body.username ?? body.id);
+    if (!targetKey || !users[targetKey]) return json(res, 404, { error: "Usuario no encontrado." });
+    const amount = Math.floor(Number(body.amount));
+    if (!Number.isSafeInteger(amount) || amount < 0 || amount > 9999999) return json(res, 400, { error: "Cantidad de Sunnys invalida." });
+    users[targetKey].sunnys = Math.min(9999999, Number(users[targetKey].sunnys || 0) + amount);
+    saveUsersDisk(users);
+    return json(res, 200, { ok: true, user: publicUser(users[targetKey], targetKey), gifted: amount });
+  }
+
+  if (urlPath === "/api/admin/ban" && req.method === "POST") {
+    const sess = getSessionUser(req);
+    if (!sess || !isAdminUser(sess.user, sess.key)) return json(res, 403, { error: "No tienes permisos de administrador." });
+    const body = await readBody(req);
+    const users = syncUserRegistry();
+    const targetKey = resolveUserKey(users, body.target ?? body.username ?? body.id);
+    if (!targetKey || !users[targetKey]) return json(res, 404, { error: "Usuario no encontrado." });
+    if (isAdminUser(users[targetKey], targetKey)) return json(res, 400, { error: "No puedes banear a otro administrador desde este panel." });
+    const days = Math.floor(Number(body.days));
+    if (!Number.isSafeInteger(days) || days < 1 || days > 36500) return json(res, 400, { error: "Los dias deben estar entre 1 y 36500." });
+    users[targetKey].banUntil = Date.now() + days * 86400000;
+    users[targetKey].banReason = safeText(body.reason || "", "", 160);
+    saveUsersDisk(users);
+
+    for (const [token, key] of [...sessions.entries()]) {
+      if (key === targetKey) {
+        sessions.delete(token); sessionStamps.delete(token);
+      }
+    }
+    saveSessionsDisk();
+    closePlayersByAccount(targetKey, 4003, "Cuenta baneada");
+    return json(res, 200, { ok: true, username: users[targetKey].username, banUntil: users[targetKey].banUntil });
+  }
+
+  if (urlPath === "/api/admin/unban" && req.method === "POST") {
+    const sess = getSessionUser(req);
+    if (!sess || !isAdminUser(sess.user, sess.key)) return json(res, 403, { error: "No tienes permisos de administrador." });
+    const body = await readBody(req);
+    const users = syncUserRegistry();
+    const targetKey = resolveUserKey(users, body.target ?? body.username ?? body.id);
+    if (!targetKey || !users[targetKey]) return json(res, 404, { error: "Usuario no encontrado." });
+    users[targetKey].banUntil = 0;
+    users[targetKey].banReason = "";
+    saveUsersDisk(users);
+    return json(res, 200, { ok: true });
+  }
+
+  if (urlPath === "/api/admin/delete-item" && req.method === "POST") {
+    const sess = getSessionUser(req);
+    if (!sess || !isAdminUser(sess.user, sess.key)) return json(res, 403, { error: "No tienes permisos de administrador." });
+    const body = await readBody(req);
+    const itemId = safeText(body.itemId, "", 180);
+    if (!itemId) return json(res, 400, { error: "Falta el ID del articulo." });
+    const catalog = loadCatalog();
+    const item = catalog.find(x => String(x.id) === itemId);
+    if (!item) return json(res, 404, { error: "Ropa no encontrada." });
+    if (item.ownerId == null) return json(res, 400, { error: "Ese objeto no fue creado por un jugador." });
+    const nextCatalog = catalog.filter(x => String(x.id) !== itemId);
+    saveCatalog(nextCatalog);
+
+    const users = syncUserRegistry();
+    for (const [key, user] of Object.entries(users)) {
+      if (Array.isArray(user.avatarInventory)) user.avatarInventory = user.avatarInventory.filter(id => id !== itemId);
+      if (Array.isArray(user.avatar && user.avatar.accessories)) user.avatar.accessories = user.avatar.accessories.filter(id => id !== itemId);
+      users[key] = user;
+    }
+    saveUsersDisk(users);
+    return json(res, 200, { ok: true, deleted: itemId });
+  }
+
   if (urlPath === "/api/streak/claim" && req.method === "POST") {
     const sess = getSessionUser(req);
     if (!sess) return json(res, 401, { error: "No autenticado." });
@@ -1338,6 +1518,29 @@ const server = http.createServer(async (req, res) => {
   res.end("Not found");
 });
 
+
+function closePlayersByAccount(accountKey, code = 4000, reason = "Sesion cerrada") {
+  for (const room of rooms.values()) {
+    for (const player of [...room.players.values()]) {
+      if (player.accountKey === accountKey) {
+        try { player.ws.close(code, reason); } catch {}
+        leaveRoom(player);
+      }
+    }
+  }
+}
+
+function getAccountFromToken(token) {
+  const raw = String(token || "");
+  const key = keyFromSignedToken(raw);
+  if (!key) return null;
+  const users = ensureUserIds(loadUsers());
+  const user = users[key];
+  if (!user) return null;
+  if (banRemainingMs(user) > 0 && !isAdminUser(user, key)) return null;
+  return { key, user, users };
+}
+
 const wss = new WebSocket.Server({ server });
 
 function send(ws, data) {
@@ -1348,6 +1551,7 @@ function publicPlayer(player) {
   return {
     id: player.id, playerId: player.id, gameId: player.gameId, serverId: SERVER_ID,
     username: censorText(player.username), avatar: player.avatar,
+    isAdmin: !!player.isAdmin,
     x: player.x, y: player.y, z: player.z, rotation: player.rotation
   };
 }
@@ -1386,7 +1590,8 @@ loadSessionsDisk();
 wss.on("connection", (ws) => {
   const player = {
     id: makeId(), ws, roomKey: null, roomName: null, gameId: null,
-    username: "Player", avatar: null, x: 0, y: 0, z: 0, rotation: 0, lastChatAt: 0, lastEmoteAt: 0
+    username: "Player", accountKey: null, isAdmin: false, adminFly: false,
+    avatar: null, x: 0, y: 0, z: 0, rotation: 0, lastChatAt: 0, lastEmoteAt: 0
   };
   ws.isAlive = true;
   ws.on("pong", () => { ws.isAlive = true; });
@@ -1398,14 +1603,25 @@ wss.on("connection", (ws) => {
     if (data.type === "join") {
       const roomName = safeText(data.room, "EpicBloxs Universe", 80);
       const gameId = safeText(data.gameId, "GAME-UNKNOWN", 32);
+      const account = getAccountFromToken(data.token);
+      if (!account) {
+        send(ws, { type: "error", code: "AUTH_REQUIRED", message: "Sesion invalida o cuenta baneada." });
+        try { ws.close(4001, "Authentication required"); } catch {}
+        return;
+      }
       if (player.roomKey) leaveRoom(player);
+      player.accountKey = account.key;
+      player.isAdmin = isAdminUser(account.user, account.key);
+      player.adminFly = false;
       const room = getOrCreateRoom(roomName, gameId);
       if (room.players.size >= MAX_PLAYERS_PER_ROOM) {
         send(ws, { type: "error", message: "Esta sala esta llena." });
         return;
       }
-      player.username = safeText(data.username, "Player", 24);
-      player.avatar = data.avatar || null;
+      // El servidor toma el nombre/avatar de la cuenta autenticada. El cliente
+      // no puede suplantar a otro usuario cambiando el username del join.
+      player.username = safeText(account.user.username, "Player", 24);
+      player.avatar = account.user.avatar || data.avatar || null;
       player.x = 0; player.y = 0; player.z = 0; player.rotation = 0;
       setPresence(player.username.toLowerCase(), { playing: true, gameId, gameName: roomName, roomName, serverId: SERVER_ID });
 
@@ -1438,6 +1654,7 @@ wss.on("connection", (ws) => {
         playerId: player.id,
         serverId: SERVER_ID,
         gameId: player.gameId,
+        isAdmin: !!player.isAdmin,
         count: room.players.size,
         players: existingPlayers,
         accounts: Object.keys(loadUsers()).length
@@ -1452,6 +1669,76 @@ wss.on("connection", (ws) => {
     if (!player.roomKey) return;
     const room = rooms.get(player.roomKey);
     if (!room) return;
+
+    if (data.type === "adminAction") {
+      if (!player.isAdmin) {
+        send(ws, { type: "adminError", message: "No tienes permisos de administrador." });
+        return;
+      }
+      const action = safeText(data.action, "", 20).toLowerCase();
+
+      if (action === "fly") {
+        player.adminFly = !player.adminFly;
+        send(ws, { type: "adminFly", enabled: player.adminFly });
+        return;
+      }
+
+      const targetId = safeText(data.targetId, "", 80);
+      const targetUsername = safeText(data.targetUsername, "", 40).toLowerCase();
+      let target = null;
+      for (const p of room.players.values()) {
+        if ((targetId && p.id === targetId) || (targetUsername && p.username.toLowerCase() === targetUsername)) {
+          target = p; break;
+        }
+      }
+      if (!target) {
+        send(ws, { type: "adminError", message: "Jugador no encontrado en esta partida." });
+        return;
+      }
+      if (target === player) {
+        send(ws, { type: "adminError", message: "No puedes aplicar esa accion a ti mismo." });
+        return;
+      }
+      if (target.isAdmin) {
+        send(ws, { type: "adminError", message: "No puedes moderar a otro administrador." });
+        return;
+      }
+
+      if (action === "kick") {
+        send(target.ws, { type: "kicked", message: "Un administrador te saco de la partida." });
+        try { target.ws.close(4002, "Kicked by admin"); } catch {}
+        return;
+      }
+
+      if (action === "ban") {
+        const days = Math.floor(Number(data.days));
+        if (!Number.isSafeInteger(days) || days < 1 || days > 36500) {
+          send(ws, { type: "adminError", message: "Los dias deben estar entre 1 y 36500." });
+          return;
+        }
+        const users = syncUserRegistry();
+        const targetUser = users[target.accountKey];
+        if (!targetUser) {
+          send(ws, { type: "adminError", message: "La cuenta del jugador no existe." });
+          return;
+        }
+        targetUser.banUntil = Date.now() + days * 86400000;
+        targetUser.banReason = safeText(data.reason || "Moderacion en juego", "", 160);
+        saveUsersDisk(users);
+        for (const [token, key] of [...sessions.entries()]) {
+          if (key === target.accountKey) {
+            sessions.delete(token); sessionStamps.delete(token);
+          }
+        }
+        saveSessionsDisk();
+        send(target.ws, { type: "banned", message: banMessage(targetUser) });
+        try { target.ws.close(4003, "Banned by admin"); } catch {}
+        return;
+      }
+
+      send(ws, { type: "adminError", message: "Accion de administrador desconocida." });
+      return;
+    }
 
     if (data.type === "move") {
       player.x = safeNumber(data.x, player.x);
