@@ -14,6 +14,10 @@ const sessions = new Map();
 const sessionStamps = new Map();
 const SESSION_TTL_MS = Infinity; // las sesiones NO caducan nunca
 const presence = new Map();
+const trades = new Map();
+const tradeByUser = new Map();
+const MAX_TRADE_ITEMS = 20;
+const MAX_TRADE_SUNNYS = 9999999;
 const PRESENCE_TTL_MS = 25000;
 
 const publicDir = path.join(__dirname, "public");
@@ -181,6 +185,108 @@ function saveGroups(data) {
 function dmConvKey(a, b) {
   return [String(a), String(b)].sort().join("|");
 }
+function tradeId() {
+  return "TRD-" + crypto.randomBytes(8).toString("hex");
+}
+
+function normalizeTradeItems(items) {
+  if (!Array.isArray(items)) return [];
+  const out = [];
+  const seen = new Set();
+  for (const raw of items.slice(0, MAX_TRADE_ITEMS)) {
+    const id = String(raw ?? "").trim().slice(0, 160);
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+    out.push(id);
+  }
+  return out;
+}
+
+function removeTradeIndexesForUser(key, tradeIdValue) {
+  if (tradeByUser.get(key) === tradeIdValue) tradeByUser.delete(key);
+}
+
+function friendPair(users, aKey, bKey) {
+  const a = users[aKey], b = users[bKey];
+  return !!(a && b && aKey !== bKey && Array.isArray(a.friends) && a.friends.includes(bKey) && Array.isArray(b.friends) && b.friends.includes(aKey));
+}
+
+function tradeSummaryForUser(trade, viewerKey, users) {
+  const fromUser = users[trade.from], toUser = users[trade.to];
+  const from = trade.from === viewerKey ? fromUser : toUser;
+  const other = trade.from === viewerKey ? toUser : fromUser;
+  return {
+    id: trade.id,
+    status: trade.status,
+    createdAt: trade.createdAt,
+    from: { id: String(fromUser.userId), username: fromUser.username },
+    to: { id: String(toUser.userId), username: toUser.username },
+    other: { id: String(other.userId), username: other.username },
+    youOffer: trade.from === viewerKey ? { sunnys: trade.fromSunnys, items: trade.fromItems } : { sunnys: trade.toSunnys, items: trade.toItems },
+    theyOffer: trade.from === viewerKey ? { sunnys: trade.toSunnys, items: trade.toItems } : { sunnys: trade.fromSunnys, items: trade.fromItems },
+    accepted: trade.accepted
+  };
+}
+
+function collectTradeState(viewerKey, users) {
+  const incoming = [], outgoing = [];
+  for (const trade of trades.values()) {
+    if (trade.status !== "pending") continue;
+    if (trade.to === viewerKey) incoming.push(tradeSummaryForUser(trade, viewerKey, users));
+    if (trade.from === viewerKey) outgoing.push(tradeSummaryForUser(trade, viewerKey, users));
+  }
+  incoming.sort((a,b)=>b.createdAt-a.createdAt);
+  outgoing.sort((a,b)=>b.createdAt-a.createdAt);
+  return { incoming, outgoing };
+}
+
+function validateTradeOffer(user, items, sunnys) {
+  const inv = Array.isArray(user.avatarInventory) ? user.avatarInventory : [];
+  const counts = new Map();
+  for (const id of inv) counts.set(id, (counts.get(id) || 0) + 1);
+  for (const id of items) {
+    if ((counts.get(id) || 0) !== 1) return `No puedes intercambiar ${id}: el artículo no está en una cantidad segura. Vacía/repara tu inventario antes de comerciar.`;
+  }
+  if (!Number.isSafeInteger(sunnys) || sunnys < 0 || sunnys > MAX_TRADE_SUNNYS) return "Cantidad de Sunnys inválida.";
+  if (sunnys > Number(user.sunnys || 0)) return "No tienes suficientes Sunnys para esa oferta.";
+  return null;
+}
+
+function finishTrade(trade, users) {
+  const a = users[trade.from], b = users[trade.to];
+  if (!a || !b) throw new Error("Una de las cuentas ya no existe.");
+  if (!friendPair(users, trade.from, trade.to)) throw new Error("Ya no son amigos. El Trade fue cancelado.");
+
+  const aErr = validateTradeOffer(a, trade.fromItems, trade.fromSunnys);
+  if (aErr) throw new Error("La oferta de " + a.username + " ya no es válida: " + aErr);
+  const bErr = validateTradeOffer(b, trade.toItems, trade.toSunnys);
+  if (bErr) throw new Error("La oferta de " + b.username + " ya no es válida: " + bErr);
+
+  const overlap = new Set(trade.fromItems);
+  for (const id of trade.toItems) if (overlap.has(id)) throw new Error("No se puede intercambiar el mismo artículo en ambos lados.");
+
+  const bInv = Array.isArray(b.avatarInventory) ? b.avatarInventory : [];
+  const aInv = Array.isArray(a.avatarInventory) ? a.avatarInventory : [];
+  for (const id of trade.fromItems) if (bInv.includes(id)) throw new Error(`${b.username} ya posee ${id}.`);
+  for (const id of trade.toItems) if (aInv.includes(id)) throw new Error(`${a.username} ya posee ${id}.`);
+
+  a.avatarInventory = aInv.filter(id => !trade.fromItems.includes(id));
+  b.avatarInventory = bInv.filter(id => !trade.toItems.includes(id));
+  a.avatarInventory.push(...trade.toItems);
+  b.avatarInventory.push(...trade.fromItems);
+  a.sunnys = Number(a.sunnys || 0) - trade.fromSunnys + trade.toSunnys;
+  b.sunnys = Number(b.sunnys || 0) - trade.toSunnys + trade.fromSunnys;
+  a.inventory = []; b.inventory = [];
+
+  const fromSet = new Set(trade.fromItems);
+  const toSet = new Set(trade.toItems);
+  a.avatar.accessories = (Array.isArray(a.avatar && a.avatar.accessories) ? a.avatar.accessories : []).filter(id => !fromSet.has(id));
+  b.avatar.accessories = (Array.isArray(b.avatar && b.avatar.accessories) ? b.avatar.accessories : []).filter(id => !toSet.has(id));
+
+  users[trade.from] = a; users[trade.to] = b;
+  saveUsersDisk(users);
+}
+
 
 function loadCatalog() {
   try { ensureDataDir(); return JSON.parse(fs.readFileSync(catalogPath, "utf8") || "[]"); } catch { return []; }
@@ -668,6 +774,74 @@ const server = http.createServer(async (req, res) => {
     users[sess.key] = user;
     saveUsersDisk(users);
     return json(res, 200, { user: publicUser(user, sess.key) });
+  }
+
+
+  if (urlPath === "/api/trade/state" && req.method === "GET") {
+    const sess = getSessionUser(req);
+    if (!sess) return json(res, 401, { error: "No autenticado." });
+    const users = syncUserRegistry();
+    return json(res, 200, collectTradeState(sess.key, users));
+  }
+
+  if (urlPath === "/api/trade/offer" && req.method === "POST") {
+    const sess = getSessionUser(req);
+    if (!sess) return json(res, 401, { error: "No autenticado." });
+    const users = syncUserRegistry();
+    const me = users[sess.key];
+    const body = await readBody(req);
+    const targetKey = resolveUserKey(users, body.id ?? body.username ?? "");
+    if (!targetKey || targetKey === sess.key) return json(res, 400, { error: "Amigo no encontrado." });
+    if (!friendPair(users, sess.key, targetKey)) return json(res, 403, { error: "Solo puedes hacer Trade con amigos." });
+    if (tradeByUser.has(sess.key) || tradeByUser.has(targetKey)) return json(res, 409, { error: "Uno de los jugadores ya tiene un Trade pendiente. Esperen a terminarlo o rechazarlo." });
+
+    const fromItems = normalizeTradeItems(body.items);
+    const fromSunnys = Number(body.sunnys || 0);
+    const err = validateTradeOffer(me, fromItems, fromSunnys);
+    if (err) return json(res, 400, { error: err });
+
+    const trade = { id: tradeId(), from: sess.key, to: targetKey, fromItems, toItems: [], fromSunnys, toSunnys: 0, accepted: { [sess.key]: false, [targetKey]: false }, status: "pending", createdAt: Date.now() };
+    trades.set(trade.id, trade); tradeByUser.set(sess.key, trade.id); tradeByUser.set(targetKey, trade.id);
+    return json(res, 201, { ok: true, trade: tradeSummaryForUser(trade, sess.key, users) });
+  }
+
+  if (urlPath === "/api/trade/respond" && req.method === "POST") {
+    const sess = getSessionUser(req);
+    if (!sess) return json(res, 401, { error: "No autenticado." });
+    const users = syncUserRegistry();
+    const body = await readBody(req);
+    const trade = trades.get(String(body.tradeId || ""));
+    const action = String(body.action || "").toLowerCase();
+    if (!trade || trade.status !== "pending") return json(res, 404, { error: "Ese Trade ya no está disponible." });
+    if (trade.from !== sess.key && trade.to !== sess.key) return json(res, 403, { error: "No puedes modificar este Trade." });
+
+    if (action === "decline" || action === "cancel") {
+      trade.status = "cancelled";
+      trades.delete(trade.id);
+      removeTradeIndexesForUser(trade.from, trade.id);
+      removeTradeIndexesForUser(trade.to, trade.id);
+      return json(res, 200, { ok: true, status: "cancelled" });
+    }
+
+    if (action === "accept") {
+      trade.accepted[sess.key] = true;
+      if (trade.accepted[trade.from] && trade.accepted[trade.to]) {
+        try { finishTrade(trade, users); }
+        catch (err) {
+          trades.delete(trade.id);
+          removeTradeIndexesForUser(trade.from, trade.id);
+          removeTradeIndexesForUser(trade.to, trade.id);
+          return json(res, 409, { error: err.message || "El Trade no pudo completarse. No se cambió ningún inventario." });
+        }
+        trades.delete(trade.id);
+        removeTradeIndexesForUser(trade.from, trade.id);
+        removeTradeIndexesForUser(trade.to, trade.id);
+        return json(res, 200, { ok: true, status: "completed", users: { self: publicUser(users[sess.key], sess.key) } });
+      }
+      return json(res, 200, { ok: true, status: "pending", trade: tradeSummaryForUser(trade, sess.key, users) });
+    }
+
+    return json(res, 400, { error: "Acción de Trade inválida." });
   }
 
   if (urlPath === "/api/users/search" && req.method === "GET") {
