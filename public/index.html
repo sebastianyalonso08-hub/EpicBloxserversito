@@ -32,7 +32,9 @@ body.theme-purple{background:#f4efff;color:#30204d}body.theme-purple .sidebar,bo
 .cat-tab{background:#ddd;border:none;padding:8px 16px;border-radius:4px;cursor:pointer;font-weight:bold;font-size:13px}
 .cat-tab.active{background:#1684e8;color:#fff}
 
-.catalog-grid,.inventory-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:15px}.inventory-slots{grid-template-columns:repeat(3,1fr)!important;max-width:540px}.inventory-slot{min-height:110px;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#fff;border:2px dashed #ccc;border-radius:8px;padding:10px}.inventory-slot.filled{border-style:solid;border-color:#bbb}.inventory-slot .slot-num{font-size:10px;color:#999;align-self:flex-start}
+.catalog-grid,.inventory-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:15px}
+.trade-layout{display:grid;grid-template-columns:1fr 1.3fr;gap:16px}.trade-card{background:#fff;border:1px solid #ccc;border-radius:8px;padding:16px;box-shadow:0 2px 8px rgba(0,0,0,.04)}.trade-friends,.trade-items{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px}.trade-friend,.trade-item{border:1px solid #d5d9df;background:#f8fafc;border-radius:7px;padding:9px;cursor:pointer;text-align:left}.trade-friend:hover,.trade-item:hover{border-color:#1684e8}.trade-friend.selected,.trade-item.selected{outline:2px solid #1684e8;background:#eef7ff}.trade-item{min-height:72px}.trade-item small{display:block;color:#777;margin-top:3px}.trade-pill{display:inline-flex;align-items:center;gap:4px;padding:4px 8px;border-radius:999px;background:#eef2f7;font-size:11px;margin:2px}.trade-offer{border:1px solid #ddd;border-radius:7px;padding:10px;margin-top:10px;background:#fafafa}.trade-offer-actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:8px}.trade-empty{padding:14px;color:#777;border:1px dashed #ccc;border-radius:7px;background:#fafafa}.trade-good{color:#188038}.trade-danger{color:#c5221f}@media(max-width:850px){.trade-layout{grid-template-columns:1fr}}
+.inventory-slots{grid-template-columns:repeat(3,1fr)!important;max-width:540px}.inventory-slot{min-height:110px;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#fff;border:2px dashed #ccc;border-radius:8px;padding:10px}.inventory-slot.filled{border-style:solid;border-color:#bbb}.inventory-slot .slot-num{font-size:10px;color:#999;align-self:flex-start}
 .catalog-item,.inventory-item,.profile-card,.settings-card{background:#fff;border:1px solid #ccc;padding:15px;border-radius:6px;box-shadow:0 2px 8px rgba(0,0,0,0.04);transition:transform 0.2s,box-shadow 0.2s}
 .catalog-item:hover,.inventory-item:hover{transform:translateY(-3px);box-shadow:0 6px 16px rgba(0,0,0,0.1)}
 .catalog-item{text-align:center}
@@ -103,6 +105,16 @@ body.in-game #webClient .client-exit-bar, body.in-game #webClient > h1 { display
 
 #authScreen{position:fixed;inset:0;background:#252525;z-index:9999;display:flex;align-items:center;justify-content:center}.auth-box{width:400px;max-width:92%;background:#fff;padding:32px;border-radius:6px;box-shadow:0 5px 25px rgba(0,0,0,0.3)}.auth-logo{text-align:center;font-size:38px;font-weight:900}.auth-logo span{color:#25a9ff}.auth-sub{text-align:center;color:#777;margin:5px 0 22px}.auth-tabs{display:flex;border-radius:4px;overflow:hidden;border:1px solid #ddd}.auth-tab{width:50%;padding:11px;border:0;background:#eee;font-weight:bold;cursor:pointer}.auth-tab.active{background:#1684e8;color:#fff}.auth-form{display:none}.auth-form.active{display:block}.auth-form label{display:block;margin:12px 0 5px;font-size:13px;font-weight:bold}.auth-form input{width:100%;padding:11px;border:1px solid #bbb;border-radius:4px}.auth-button{width:100%;margin-top:20px;padding:12px;border:0;background:#1684e8;color:#fff;font-weight:bold;cursor:pointer;border-radius:4px}.auth-message{text-align:center;min-height:18px;margin-top:12px;font-size:13px}.error{color:#d93025}.success{color:#188038}.auth-info{margin-top:18px;padding:10px;background:#f3f3f3;color:#777;font-size:11px;border-radius:4px}
 
+
+.avatar-category-bar{display:flex;flex-wrap:wrap;gap:7px;margin:8px 0 6px;padding:8px;background:#f3f6f9;border:1px solid #d8dee5;border-radius:8px}
+.avatar-cat{border:1px solid #c7d0da;background:#fff;color:#333;border-radius:999px;padding:7px 11px;font-size:12px;font-weight:700;cursor:pointer;transition:.15s}
+.avatar-cat:hover{border-color:#1684e8;background:#eef7ff}
+.avatar-cat.active{background:#1684e8;color:#fff;border-color:#1684e8;box-shadow:0 2px 6px rgba(22,132,232,.25)}
+.avatar-category-hint{font-size:12px;color:#666;margin:7px 0 10px}
+.avatar-items-list{display:flex;flex-wrap:wrap;gap:8px;padding:10px;background:#fafbfc;border:1px solid #e1e5ea;border-radius:8px;min-height:44px}
+.avatar-item-group-label{width:100%;font-size:11px;color:#777;font-weight:800;text-transform:uppercase;letter-spacing:.04em;margin:2px 0 0}
+.avatar-item-button{background:#292929!important;margin:0!important}
+.avatar-item-button.equipped{background:#188038!important}
 .avatar-wrap{display:flex;gap:35px;align-items:flex-start;flex-wrap:wrap}.avatar-panel{background:#fff;border:1px solid #ccc;padding:20px;min-width:330px;border-radius:6px;box-shadow:0 2px 8px rgba(0,0,0,0.04)}
 .avatar-stage{width:300px;height:390px;margin:auto;background:linear-gradient(#bde7ff 0 72%,#7bb957 72%);border:1px solid #aaa;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;border-radius:6px;box-shadow:inset 0 4px 10px rgba(0,0,0,0.1)}
 #previewCanvasContainer{width:100%;height:100%;position:absolute;top:0;left:0;}
@@ -213,7 +225,7 @@ body.in-game #webClient .client-exit-bar, body.in-game #webClient > h1 { display
   <div class="side-item" onclick="showPage('friends')"><div class="side-icon">👥</div><span>Friends</span></div>
   <div class="side-item" onclick="showPage('settings')"><div class="side-icon">⚙️</div><span>Settings</span></div>
   <div class="side-item" onclick="alert('Messages próximamente')"><div class="side-icon">▤</div><span>Messages</span></div>
-  <div class="side-item" onclick="alert('Trade próximamente')"><div class="side-icon">⇄</div><span>Trade</span></div>
+  <div class="side-item" onclick="showPage('trade')"><div class="side-icon">⇄</div><span>Trade</span></div>
   <div class="side-item" onclick="alert('Groups próximamente')"><div class="side-icon">♧</div><span>Groups</span></div>
   <div class="upgrade" onclick="alert('EpicBloxs Premium próximamente')">Upgrade Now</div>
   <div class="events"><div class="events-title">Events</div><p>No ongoing events. Come back later.</p></div>
@@ -344,6 +356,31 @@ body.in-game #webClient .client-exit-bar, body.in-game #webClient > h1 { display
   </div>
 </section>
 
+
+<section id="trade" class="page">
+  <h1>Trade</h1>
+  <p>Intercambia Sunnys, ropa y accesorios con tus amigos. El servidor comprueba la propiedad de cada artículo al completar el intercambio para evitar duplicaciones.</p>
+  <div class="trade-layout">
+    <div class="trade-card">
+      <h3 style="margin-top:0">1. Elige un amigo</h3>
+      <div id="tradeFriends" class="trade-friends"></div>
+      <div id="tradeFriendHint" class="trade-empty" style="margin-top:10px">Selecciona un amigo para empezar.</div>
+      <h3 style="margin-top:18px">2. Tu oferta</h3>
+      <label style="font-size:12px;color:#666">Sunnys a ofrecer</label>
+      <input id="tradeSunnysInput" type="number" min="0" max="9999999" step="1" value="0" style="width:100%;box-sizing:border-box;padding:9px;margin:5px 0 10px;border:1px solid #ccc;border-radius:5px">
+      <div id="tradeMyItems" class="trade-items"></div>
+      <div id="tradeSelectedCount" style="font-size:12px;color:#666;margin-top:8px">0 artículos seleccionados</div>
+      <button class="buy" style="margin-top:12px" onclick="sendTradeOffer()">Enviar oferta</button>
+    </div>
+    <div class="trade-card">
+      <h3 style="margin-top:0">Ofertas pendientes</h3>
+      <div id="tradeIncoming"></div>
+      <h3 style="margin-top:22px">Mis ofertas enviadas</h3>
+      <div id="tradeOutgoing"></div>
+    </div>
+  </div>
+</section>
+
 <section id="games" class="page"><h1>Games</h1><p>Descubre juegos únicos creados por la comunidad.</p><div id="gamesGrid" class="games"></div></section>
 
 <section id="catalog" class="page">
@@ -433,8 +470,17 @@ body.in-game #webClient .client-exit-bar, body.in-game #webClient > h1 { display
     <div class="avatar-panel" style="flex:1">
       <h2>Personalización Accesories and Clothing</h2>
       <p style="font-size:13px;color:#666;">Equip or unequip accesories that you own! [W.I.P]:</p>
-      <div id="accessoryButtons" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:15px;">
-        <button class="section-button" onclick="toggleAccessory('normal')">Ninguno</button>
+      <div class="avatar-category-bar" aria-label="Categorías del Avatar">
+        <button type="button" class="avatar-cat active" data-avatar-cat="all" onclick="filterAvatarCategory('all', this)">✨ Todo</button>
+        <button type="button" class="avatar-cat" data-avatar-cat="hats" onclick="filterAvatarCategory('hats', this)">🧢 Sombreros</button>
+        <button type="button" class="avatar-cat" data-avatar-cat="shirts" onclick="filterAvatarCategory('shirts', this)">👕 Camisas</button>
+        <button type="button" class="avatar-cat" data-avatar-cat="pants" onclick="filterAvatarCategory('pants', this)">👖 Pantalones</button>
+        <button type="button" class="avatar-cat" data-avatar-cat="faces" onclick="filterAvatarCategory('faces', this)">🙂 Caras</button>
+        <button type="button" class="avatar-cat" data-avatar-cat="gear" onclick="filterAvatarCategory('gear', this)">🎒 Accesorios</button>
+      </div>
+      <div id="avatarCategoryHint" class="avatar-category-hint">Mostrando todos tus objetos del Avatar.</div>
+      <div id="accessoryButtons" class="avatar-items-list">
+        <button class="section-button" onclick="toggleAccessory('normal')">Quitar todo</button>
       </div>
 
       <div class="color-section">
@@ -4258,6 +4304,7 @@ function showPage(p){
   if(p==="avatar") { try { const t=(current()&&current().user.avatar&&current().user.avatar.torsoType)||"male"; const mb=document.getElementById("torsoTypeMale"); const fb=document.getElementById("torsoTypeFemale"); if(mb) mb.style.background=t==="male"?"#1684e8":"#292929"; if(fb) fb.style.background=t==="female"?"#e91e8c":"#292929"; } catch(e){} }
   if(p==="games") loadGames();
   if(p==="friends") { refreshFriendsFromServer(); renderFriendsPage(); }
+  if(p==="trade") { refreshFriendsFromServer(); refreshTradeState(); renderTradeFriends(); renderTradeMyItems(); }
   if(p==="settings") { refreshSettings(); }
   if(p==="catalog") {
     renderCatalog('all');
@@ -4365,6 +4412,7 @@ function renderCatalog(category) {
       <div class="catalog-image">${catalogIconSVG(item)}</div>
       <h3 style="margin:5px 0">${item.name}</h3>
       <p style="color:#666;font-size:12px;margin:3px 0">${item.desc}</p>
+      <p style="color:#777;font-size:12px;margin:3px 0">👤 Creador: ${escapeHTML(item.owner || 'EpicBlox')}</p>
       <p style="color:#666;font-size:13px;margin:5px 0">☀️ ${item.price} Sunnys</p>
       <button class="buy" id="cat-btn-${item.id}" onclick="buy('${item.id}', ${item.price})">Buy</button>
     </div>
@@ -4407,27 +4455,57 @@ function updateCatalogButtons(u){
   });
 }
 
+let avatarCategoryFilter = 'all';
+
+function avatarCategoryLabel(category){
+  return ({hats:'Sombreros', shirts:'Camisas', pants:'Pantalones', faces:'Caras', gear:'Accesorios'})[category] || 'Otros';
+}
+
+function filterAvatarCategory(category, btn){
+  avatarCategoryFilter = category || 'all';
+  document.querySelectorAll('.avatar-cat').forEach(b => b.classList.toggle('active', b === btn || b.dataset.avatarCat === avatarCategoryFilter));
+  const hint = document.getElementById('avatarCategoryHint');
+  if(hint){
+    hint.textContent = avatarCategoryFilter === 'all'
+      ? 'Mostrando todos tus objetos del Avatar.'
+      : 'Mostrando: ' + avatarCategoryLabel(avatarCategoryFilter) + '.';
+  }
+  const c=current();
+  if(c) updateAccessoryButtons(c.user);
+}
+
 function updateAccessoryButtons(u){
   const accContainer = document.getElementById('accessoryButtons');
   if(!accContainer) return;
   const inv = (u && (u.avatarInventory || u.inventory)) || [];
   const equipped = (u && u.avatar && u.avatar.accessories) || [];
-  
-  let html = `<p style="font-size:12px;color:#555;margin:0 0 8px;">Haz clic para equipar o desequipar múltiples ítems y ropa 2D:</p>`;
-  html += `<button class="section-button" style="background:#d93025;margin-right:6px;margin-bottom:6px;" onclick="toggleAccessory('normal')">Quitar Todo</button>`;
-  
-  let hasAny = false;
-  
-  catalogDatabase.forEach(item => {
-    if(inv.includes(item.id)) {
-      hasAny = true;
-      const isEquipped = equipped.includes(item.id);
-      html += `<button class="section-button" style="background:${isEquipped ? '#188038' : '#292929'};margin-right:6px;margin-bottom:6px;" onclick="toggleAccessory('${item.id}')">${isEquipped ? '✓ Quitar ' : '+ Poner '} ${item.name}</button>`;
+  const filter = avatarCategoryFilter || 'all';
+  const items = catalogDatabase.filter(item => inv.includes(item.id) && (filter === 'all' || item.category === filter));
+
+  let html = '';
+  if(filter === 'all') html += `<div class="avatar-item-group-label">Equipamiento</div><button class="section-button" style="background:#d93025;margin:0;" onclick="toggleAccessory('normal')">✕ Quitar todo</button>`;
+  else html += `<button class="section-button" style="background:#d93025;margin:0;" onclick="toggleAccessory('normal')">✕ Quitar todo</button>`;
+
+  if(!items.length){
+    html += `<div style="width:100%;font-size:12px;color:#777;padding:8px 2px;">No tienes objetos en esta categoría. Visita el Catálogo para conseguirlos.</div>`;
+  } else {
+    if(filter === 'all'){
+      const order = ['hats','shirts','pants','faces','gear'];
+      order.forEach(cat => {
+        const group = items.filter(item => item.category === cat);
+        if(!group.length) return;
+        html += `<div class="avatar-item-group-label">${avatarCategoryLabel(cat)}</div>`;
+        group.forEach(item => {
+          const isEquipped = equipped.includes(item.id);
+          html += `<button type="button" class="section-button avatar-item-button ${isEquipped?'equipped':''}" onclick="toggleAccessory(${JSON.stringify(item.id)})">${isEquipped ? '✓ Quitar ' : '+ Poner '} ${escapeHTML(item.name)}</button>`;
+        });
+      });
+    } else {
+      items.forEach(item => {
+        const isEquipped = equipped.includes(item.id);
+        html += `<button type="button" class="section-button avatar-item-button ${isEquipped?'equipped':''}" onclick="toggleAccessory(${JSON.stringify(item.id)})">${isEquipped ? '✓ Quitar ' : '+ Poner '} ${escapeHTML(item.name)}</button>`;
+      });
     }
-  });
-  
-  if(!hasAny) {
-    html += `<p style="font-size:12px;color:#777;">No tienes accesorios comprados. Visita el Catálogo.</p>`;
   }
   accContainer.innerHTML = html;
 }
@@ -4921,6 +4999,121 @@ function sendChatMessage() {
   }
 }
 
+// ==================== TRADE SEGURO ====================
+let tradeSelectedFriend = null;
+let tradeSelectedItems = new Set();
+let tradeState = { incoming: [], outgoing: [] };
+let tradePollTimer = null;
+
+function tradeItemInfo(id){
+  const item = (typeof catalogDatabase !== 'undefined') ? catalogDatabase.find(x => x.id === id) : null;
+  return item || { id, name:id, category:'item', desc:'Artículo del avatar' };
+}
+
+function tradeCategoryLabel(category){
+  return ({hats:'Sombrero',shirts:'Ropa',pants:'Pantalón',faces:'Cara',gear:'Accesorio'})[category] || 'Artículo';
+}
+
+function renderTradeFriends(){
+  const box=document.getElementById('tradeFriends'); if(!box) return;
+  const friends=getMyFriends();
+  if(!friends.length){ box.innerHTML='<div class="trade-empty" style="grid-column:1/-1">Necesitas tener al menos un amigo para hacer Trade.</div>'; return; }
+  box.innerHTML=friends.map(f=>{
+    const id=String(f.id);
+    const selected=String(tradeSelectedFriend||'')===id;
+    const online=f.presence&&f.presence.online;
+    return `<button class="trade-friend ${selected?'selected':''}" onclick="selectTradeFriend('${escapeHTML(id)}')"><b>${escapeHTML(f.username||'Player')}</b><small>${online?'🟢 En línea':'⚪ Desconectado'}</small></button>`;
+  }).join('');
+  const chosen=friends.find(f=>String(f.id)===String(tradeSelectedFriend));
+  const hint=document.getElementById('tradeFriendHint');
+  if(hint) hint.innerHTML=chosen ? `Vas a hacer Trade con <strong>${escapeHTML(chosen.username)}</strong>.` : 'Selecciona un amigo para empezar.';
+}
+
+function selectTradeFriend(id){
+  tradeSelectedFriend=String(id);
+  tradeSelectedItems.clear();
+  const amount=document.getElementById('tradeSunnysInput'); if(amount) amount.value='0';
+  renderTradeFriends(); renderTradeMyItems();
+}
+
+function renderTradeMyItems(){
+  const box=document.getElementById('tradeMyItems'); const count=document.getElementById('tradeSelectedCount');
+  if(!box) return;
+  const c=current(); const inv=(c&&c.user&&Array.isArray(c.user.avatarInventory))?c.user.avatarInventory:[];
+  const unique=[]; const seen=new Set();
+  for(const id of inv){ if(seen.has(id)) continue; seen.add(id); unique.push(id); }
+  if(!unique.length){ box.innerHTML='<div class="trade-empty" style="grid-column:1/-1">No tienes ropa ni accesorios para intercambiar.</div>'; if(count) count.textContent='0 artículos seleccionados'; return; }
+  box.innerHTML=unique.map(id=>{
+    const item=tradeItemInfo(id); const selected=tradeSelectedItems.has(id);
+    return `<button type="button" class="trade-item ${selected?'selected':''}" onclick="toggleTradeItem(${JSON.stringify(id)})"><b>${escapeHTML(item.name)}</b><small>${tradeCategoryLabel(item.category)}</small></button>`;
+  }).join('');
+  if(count) count.textContent=tradeSelectedItems.size+' artículo(s) seleccionado(s)';
+}
+
+function toggleTradeItem(id){
+  id=String(id);
+  if(tradeSelectedItems.has(id)) tradeSelectedItems.delete(id); else { if(tradeSelectedItems.size>=20) return alert('Puedes ofrecer como máximo 20 artículos.'); tradeSelectedItems.add(id); }
+  renderTradeMyItems();
+}
+
+function renderTradeOffer(off, label, tradeId, isIncoming, accepted){
+  const items=(off.items||[]).map(id=>`<span class="trade-pill">${escapeHTML(tradeItemInfo(id).name)}</span>`).join('');
+  return `<div class="trade-offer"><div style="font-weight:bold">${label}</div><div style="margin-top:6px">☀️ <b>${Number(off.sunnys||0).toLocaleString()}</b> Sunnys</div><div style="margin-top:4px">${items||'<span style="color:#777;font-size:12px">Sin artículos</span>'}</div>${isIncoming ? `<div class="trade-offer-actions"><button class="buy" style="width:auto" onclick="respondTrade('${escapeHTML(tradeId)}','accept')">Aceptar</button><button class="section-button" style="margin:0;background:#d93025" onclick="respondTrade('${escapeHTML(tradeId)}','decline')">Rechazar</button></div>` : `<div style="font-size:12px;color:#777;margin-top:8px">Estado: esperando la respuesta del amigo.</div><button class="section-button" style="margin-top:8px;background:#8a8f98" onclick="respondTrade('${escapeHTML(tradeId)}','cancel')">Cancelar</button>`}</div>`;
+}
+
+function renderTradeState(){
+  const inc=document.getElementById('tradeIncoming'), out=document.getElementById('tradeOutgoing');
+  if(!inc||!out) return;
+  inc.innerHTML=tradeState.incoming.length ? tradeState.incoming.map(t=>renderTradeOffer(t.theyOffer, `${escapeHTML(t.other.username)} te ofrece:`, t.id, true, t.accepted&&t.accepted[t.to&&t.to.id])).join('') : '<div class="trade-empty">No tienes ofertas entrantes.</div>';
+  out.innerHTML=tradeState.outgoing.length ? tradeState.outgoing.map(t=>renderTradeOffer(t.youOffer, `Oferta para ${escapeHTML(t.other.username)}:`, t.id, false, false)).join('') : '<div class="trade-empty">No tienes ofertas enviadas.</div>';
+}
+
+async function refreshTradeState(){
+  if(!getToken()) return;
+  try {
+    const data=await api('/api/trade/state',{},1);
+    tradeState={incoming:data.incoming||[],outgoing:data.outgoing||[]};
+    renderTradeState();
+    if(document.getElementById('trade')?.classList.contains('active')){
+      const me=await api('/api/me',{},1);
+      if(me.user){ setCachedUser(me.user); updateUI(me.user); renderTradeMyItems(); }
+    }
+  } catch(e) {}
+}
+
+async function sendTradeOffer(){
+  if(!tradeSelectedFriend) return alert('Selecciona un amigo.');
+  const c=current(); if(!c||!c.user) return alert('Debes iniciar sesión.');
+  const input=document.getElementById('tradeSunnysInput');
+  const sunnys=Math.floor(Number(input?.value||0));
+  if(!Number.isSafeInteger(sunnys)||sunnys<0||sunnys>9999999) return alert('Cantidad de Sunnys inválida.');
+  if(sunnys>Number(c.user.sunnys||0)) return alert('No tienes suficientes Sunnys.');
+  try {
+    const data=await api('/api/trade/offer',{method:'POST',body:JSON.stringify({id:tradeSelectedFriend,items:[...tradeSelectedItems],sunnys})},2);
+    tradeSelectedItems.clear(); if(input) input.value='0';
+    await refreshTradeState();
+    alert('✅ Oferta de Trade enviada. El otro jugador debe aceptarla.');
+  } catch(e){ alert('❌ '+(e.message||'No se pudo enviar el Trade.')); }
+}
+
+async function respondTrade(tradeId, action){
+  try {
+    const data=await api('/api/trade/respond',{method:'POST',body:JSON.stringify({tradeId,action})},2);
+    if(data.status==='completed' && data.users && data.users.self){
+      setCachedUser(data.users.self); updateUI(data.users.self); loadInventory(); renderCatalog('all'); renderTradeMyItems();
+      alert('✅ Trade completado. Los Sunnys y artículos fueron transferidos sin duplicarlos.');
+    } else if(action==='accept') {
+      alert('✅ Has aceptado. El Trade se completará cuando el otro jugador también acepte.');
+    }
+    await refreshTradeState();
+  } catch(e){ alert('❌ '+(e.message||'El Trade no pudo completarse. Ningún artículo se duplicó.')); await refreshTradeState(); }
+}
+
+function startTradePolling(){
+  if(tradePollTimer) clearInterval(tradePollTimer);
+  tradePollTimer=setInterval(()=>{ if(getToken()) refreshTradeState(); },4000);
+}
+
 function resetLocalData(){if(confirm("¿Cerrar sesión y borrar cache local?")){setToken('');setCachedUser(null);location.reload()}}
 
 function init(){
@@ -4928,6 +5121,7 @@ function init(){
   const c=current();if(c)loadCurrentUser();else document.getElementById('authScreen').style.display="flex";
   loadGames();
   loadCustomCatalog();
+  startTradePolling();
   setTimeout(creatorInitViewer, 250);
 }
 init();
