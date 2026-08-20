@@ -316,59 +316,25 @@ function saveCatalog(items) {
   fs.writeFileSync(catalogPath, JSON.stringify(items, null, 2), "utf8");
 }
 
-function loadAccessConfig() {
+function loadAdmins() {
   ensureDataDir();
   try {
     const raw = JSON.parse(fs.readFileSync(adminsPath, "utf8") || "[]");
-    // Compatibilidad: la versión anterior usaba simplemente ["User1","User2"].
-    if (Array.isArray(raw)) return { admins: raw, creators: [] };
-    if (raw && typeof raw === "object") {
-      return {
-        admins: Array.isArray(raw.admins) ? raw.admins : [],
-        creators: Array.isArray(raw.creators) ? raw.creators : []
-      };
-    }
-  } catch {}
-  return { admins: [], creators: [] };
-}
-
-function loadAdmins() {
-  return loadAccessConfig().admins
-    .map(v => String(v).trim())
-    .filter(Boolean);
-}
-
-function loadCreators() {
-  return loadAccessConfig().creators
-    .map(v => String(v).trim())
-    .filter(Boolean);
-}
-
-function matchesConfiguredUser(user, key, values) {
-  const configured = new Set(values.map(v => String(v).trim().toLowerCase()).filter(Boolean));
-  return configured.has(String(key || "").toLowerCase())
-    || configured.has(String(user?.username || "").trim().toLowerCase())
-    || configured.has(String(user?.userId || "").trim().toLowerCase());
+    return Array.isArray(raw) ? raw.map(v => String(v).trim()).filter(Boolean) : [];
+  } catch { return []; }
 }
 
 function isAdminUser(user, key) {
   if (!user) return false;
-  const configured = loadAdmins();
+  const configured = new Set(loadAdmins().map(v => v.toLowerCase()));
   const envValues = String(process.env.ADMIN_USER_IDS || process.env.EPICBLOXS_ADMIN_USERS || "")
     .split(",").map(v => v.trim()).filter(Boolean);
-  configured.push(...envValues);
-  const owner = String(process.env.EPICBLOXS_OWNER_USERNAME || "").trim();
-  if (owner) configured.push(owner);
-  return matchesConfiguredUser(user, key, configured);
-}
-
-function isCreatorUser(user, key) {
-  if (!user) return false;
-  const configured = loadCreators();
-  const envValues = String(process.env.CREATOR_USER_IDS || process.env.EPICBLOXS_CREATORS || "")
-    .split(",").map(v => v.trim()).filter(Boolean);
-  configured.push(...envValues);
-  return matchesConfiguredUser(user, key, configured) || isAdminUser(user, key);
+  for (const v of envValues) configured.add(v.toLowerCase());
+  const owner = String(process.env.EPICBLOXS_OWNER_USERNAME || "").trim().toLowerCase();
+  if (owner) configured.add(owner);
+  return configured.has(String(key || "").toLowerCase())
+    || configured.has(String(user.username || "").trim().toLowerCase())
+    || configured.has(String(user.userId || "").trim().toLowerCase());
 }
 
 function banRemainingMs(user) {
@@ -691,7 +657,6 @@ function publicUser(user, key) {
     outgoingRequests: user.outgoingRequests || [],
     bannedUntil: Number(user.banUntil || 0),
     isAdmin: isAdminUser(user, key),
-    isCreator: isCreatorUser(user, key),
     createdAt: user.createdAt
   };
 }
@@ -803,11 +768,9 @@ const server = http.createServer(async (req, res) => {
   if (req.method === "OPTIONS") return json(res, 204, {});
 
   if (urlPath === "/health") {
+    const players = [...rooms.values()].reduce((n, room) => n + room.players.size, 0);
+    const accounts = Object.keys(syncUserRegistry()).length;
     const online = [...rooms.values()].reduce((n, room) => n + room.players.size, 0);
-    let accounts = 0;
-    try { accounts = Object.keys(syncUserRegistry()).length; } catch (err) {
-      console.error("Health datastore warning:", err.message);
-    }
     return json(res, 200, {
       ok: true,
       service: "EpicBloxs Global",
@@ -1175,9 +1138,6 @@ const server = http.createServer(async (req, res) => {
   if (urlPath === "/api/creator/publish" && req.method === "POST") {
     const sess = getSessionUser(req);
     if (!sess) return json(res, 401, { error: "No autenticado." });
-    if (!isCreatorUser(sess.user, sess.key)) {
-      return json(res, 403, { error: "Solo los creadores autorizados pueden publicar ropa." });
-    }
     const body = await readBody(req);
     const name = safeText(body.name, "", 40);
     const description = safeText(body.description, "", 200);
@@ -1222,7 +1182,6 @@ const server = http.createServer(async (req, res) => {
     return json(res, 200, {
       ok: true,
       isAdmin: true,
-      creators: loadCreators(),
       users: Object.entries(users).map(([key, user]) => ({
         id: String(user.userId), username: user.username, usernameKey: key,
         sunnys: Number(user.sunnys || 0), banUntil: Number(user.banUntil || 0),
@@ -1593,7 +1552,6 @@ function publicPlayer(player) {
     id: player.id, playerId: player.id, gameId: player.gameId, serverId: SERVER_ID,
     username: censorText(player.username), avatar: player.avatar,
     isAdmin: !!player.isAdmin,
-    isCreator: !!player.isCreator,
     x: player.x, y: player.y, z: player.z, rotation: player.rotation
   };
 }
@@ -1632,7 +1590,7 @@ loadSessionsDisk();
 wss.on("connection", (ws) => {
   const player = {
     id: makeId(), ws, roomKey: null, roomName: null, gameId: null,
-    username: "Player", accountKey: null, isAdmin: false, isCreator: false, adminFly: false,
+    username: "Player", accountKey: null, isAdmin: false, adminFly: false,
     avatar: null, x: 0, y: 0, z: 0, rotation: 0, lastChatAt: 0, lastEmoteAt: 0
   };
   ws.isAlive = true;
@@ -1654,7 +1612,6 @@ wss.on("connection", (ws) => {
       if (player.roomKey) leaveRoom(player);
       player.accountKey = account.key;
       player.isAdmin = isAdminUser(account.user, account.key);
-      player.isCreator = isCreatorUser(account.user, account.key);
       player.adminFly = false;
       const room = getOrCreateRoom(roomName, gameId);
       if (room.players.size >= MAX_PLAYERS_PER_ROOM) {
@@ -1698,7 +1655,6 @@ wss.on("connection", (ws) => {
         serverId: SERVER_ID,
         gameId: player.gameId,
         isAdmin: !!player.isAdmin,
-        isCreator: !!player.isCreator,
         count: room.players.size,
         players: existingPlayers,
         accounts: Object.keys(loadUsers()).length
